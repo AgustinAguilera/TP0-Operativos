@@ -14,7 +14,16 @@
  */
 void* serializar_paquete(t_paquete* paquete, int *bytes)
 {
+	void * magic = malloc(bytes);
+	int offset = 0;
 
+	memcpy(magic + offset, &(paquete->codigo_operacion),sizeof(int));
+	offset += sizeof(int);
+	memcpy(magic + offset,&(paquete->buffer->size),sizeof(int));
+	offset += sizeof(int);
+	memcpy(magic + offset,paquete->buffer->stream, paquete->buffer->size);
+
+	return magic;
 }
 
 int crear_conexion(char *ip, char* puerto)
@@ -42,13 +51,69 @@ int crear_conexion(char *ip, char* puerto)
 //TODO
 void enviar_mensaje(char* mensaje, int socket_cliente)
 {
+	printf("Comienza a enviar el mensaje\n");
 
+	char* string = mensaje;
+
+	int tamanio_mensaje = strlen(string) + 1;
+	t_buffer* buffer = malloc(sizeof(t_buffer));
+	buffer->size = tamanio_mensaje;
+
+	void* stream = malloc(buffer->size);
+	int offset = 0;
+
+	memcpy(stream + offset,&string,tamanio_mensaje);
+	buffer->stream = stream;
+
+	t_paquete* paquete = malloc(sizeof(paquete));
+
+	paquete->codigo_operacion = MENSAJE;
+	paquete->buffer = buffer;
+
+	int bytes = paquete->buffer->size + 2*sizeof(int);
+
+	void* a_enviar = serializar_paquete(paquete,bytes);
+
+
+	if(send(socket_cliente,a_enviar, bytes ,0) > 0){
+		printf("Se mando el mensaje correctamente\n");
+	}
+	else{
+		printf("No se mando una mierda");
+	}
+
+	free(a_enviar);
+	free(paquete->buffer->stream);
+	free(paquete->buffer);
+	free(paquete);
 }
 
 //TODO
 char* recibir_mensaje(int socket_cliente)
 {
+	printf("Comienza a recibir el mensaje\n");
 
+	t_paquete* paquete = malloc(sizeof(paquete));
+
+
+	if(recv(socket_cliente,&(paquete->codigo_operacion),sizeof(int),0) > 0){
+		printf("Se recibio el codigo de operacion correctamente\n");
+	}
+
+	if(recv(socket_cliente,&(paquete->buffer->size),sizeof(int),0) > 0){
+			printf("Se recibio el tamanio del buffer correctamente\n");
+		}
+
+	if(recv(socket_cliente,&(paquete->buffer->stream),paquete->buffer->size,0) > 0){
+				printf("Se recibio el stream correctamente\n");
+			}
+
+	char* string = paquete->buffer->stream;
+
+	free(paquete->buffer);
+	free(paquete);
+
+	return string;
 }
 
 void liberar_conexion(int socket_cliente)
